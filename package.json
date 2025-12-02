@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/Devofmay/ECE-Node-PROJET#readme",
   "dependencies": {
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "mongodb": "^7.0.0"
   }
