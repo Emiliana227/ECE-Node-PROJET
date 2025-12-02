@@ -17,5 +17,9 @@
   "bugs": {
     "url": "https://github.com/Devofmay/ECE-Node-PROJET/issues"
   },
-  "homepage": "https://github.com/Devofmay/ECE-Node-PROJET#readme"
+  "homepage": "https://github.com/Devofmay/ECE-Node-PROJET#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "mongodb": "^7.0.0"
+  }
 }
