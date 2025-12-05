@@ -95,3 +95,55 @@ app.get('/users/stats/monthly', async (req, res) => {
 
 
 
+/ PUT /taches/:id
+// Modifier une tâche existante (tous les champs modifiables)
+// Params: id (identifiant de la tâche)
+// Body: champs à modifier
+app.put('/taches/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.collection('taches').updateOne(
+      { _id: id },
+      { $set: req.body }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Tache not found' });
+    }
+    const updatedTache = await db.collection('taches').findOne({ _id: id });
+    res.json(updatedTache);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//  GET /taches/assigned/:userId
+// Filtrer les tâches assignées à un utilisateur spécifique
+app.get('/taches/assigned/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const taches = await db.collection('taches').find({ assignee_a: userId }).toArray();
+    res.json(taches);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//  GET /taches/stats/assignees
+// Agrégation: Nombre de tâches par utilisateur assigné
+// Pipeline: regroupement par assignee_a → comptage → tri par nombre décroissant
+app.get('/taches/stats/assignees', async (req, res) => {
+  try {
+    const stats = await db.collection('taches').aggregate([
+      {
+        $group: {
+          _id: '$assignee_a',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]).toArray();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
