@@ -4,11 +4,11 @@ dotenv.config();
 
 const client = new MongoClient(process.env.MONGO_URI);
 let db = null;
-
+let DB_NAME="GestionnaireProjets";
 export async function connect() {
 if (!db) {
     await client.connect();
-    db = client.db(process.env.DB_NAME);
+    db = client.db(DB_NAME);
     console.log("MongoDB connecté :", db.databaseName);
 }
     return db;

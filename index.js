@@ -4,16 +4,19 @@ import { connect } from "./db/mongoClient.js";
 const app = express();
 app.use(express.json());
 
-let projets;
-let taches;
-let users;
+let db, projets, taches, users;
 
-app.locals.startup = (async () => {
-    const db = await connect();
-    projets = db.collection("projets");
-    taches = db.collection("taches");
-    users = db.collection("users");
-})();
+async function startServer() {
+  db = await connect();
+  projets = db.collection("projets");
+  taches = db.collection("taches");
+  users = db.collection("users");
+
+  app.listen(3000, () => console.log("API disponible sur http://localhost:3000"));
+}
+
+startServer();
+
 app.post('/users', async (req, res) => {
   try {
     const user = { ...req.body, created_a: new Date().toISOString() };
@@ -29,8 +32,8 @@ app.get('/users', async (req, res) => {
     const { role, page = 1, limit = 10 } = req.query;
     const filter = role ? { role } : {};
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const user = await users.find(filter).skip(skip).limit(parseInt(limit)).toArray();
-    const total = await users.countDocuments(filter);
+    const user = await db.collection('users').find(filter).skip(skip).limit(parseInt(limit)).toArray();
+    const total = await db.collection('users').countDocuments(filter);
     res.json({ user, total, page: parseInt(page), limit: parseInt(limit) });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -64,4 +67,3 @@ app.get('/users/stats/monthly', async (req, res) => {
 
 
 
-app.listen(3000, () => console.log("API disponible sur http://localhost:3000"));
