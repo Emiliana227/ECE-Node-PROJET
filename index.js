@@ -1,5 +1,7 @@
 import express from "express";
 import { connect } from "./db/mongoClient.js";
+import { importData } from "./import.js";
+import fs from "fs/promises";
 
 const app = express();
 app.use(express.json());
@@ -16,6 +18,32 @@ async function startServer() {
 }
 
 startServer();
+
+//route import 
+app.post('/import', async (req, res) => {
+  try {
+    const { filePath } = req.body;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'Le chemin du fichier est requis' });
+    }
+
+    // Lire le fichier JSON
+    const fileContent = await fs.readFile(filePath, 'utf-8');
+    const data = JSON.parse(fileContent);
+
+    // Importer les données
+    const result = await importData(db, data);
+
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.post('/users', async (req, res) => {
   try {
