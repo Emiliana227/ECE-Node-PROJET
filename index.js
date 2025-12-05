@@ -45,9 +45,12 @@ app.post('/import', async (req, res) => {
   }
 });
 
+// route  POST /users
+// Créer un nouvel utilisateur dans la base de données
+
 app.post('/users', async (req, res) => {
   try {
-    const user = { ...req.body, created_a: new Date().toISOString() };
+    const user = { ...req.body, created_a: new Date().toISOString() }; 
     const result = await db.collection('users').insertOne(user);
     res.status(201).json({ _id: result.insertedId, ...user });
   } catch (error) {
@@ -55,19 +58,24 @@ app.post('/users', async (req, res) => {
   }
 });
 
+// route GET /users?role=ADMIN&page=1&limit=10
+// Rechercher des utilisateurs avec filtres et pagination
+
 app.get('/users', async (req, res) => {
   try {
     const { role, page = 1, limit = 10 } = req.query;
     const filter = role ? { role } : {};
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const user = await db.collection('users').find(filter).skip(skip).limit(parseInt(limit)).toArray();
+    const users = await db.collection('users').find(filter).skip(skip).limit(parseInt(limit)).toArray();
     const total = await db.collection('users').countDocuments(filter);
-    res.json({ user, total, page: parseInt(page), limit: parseInt(limit) });
+    res.json({ users, total, page: parseInt(page), limit: parseInt(limit) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+ //route GET /users/stats/monthly
+// (pipeline)Agrégation: Statistiques de création des utilisateurs par mois/année
 
 app.get('/users/stats/monthly', async (req, res) => {
   try {
@@ -91,7 +99,6 @@ app.get('/users/stats/monthly', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 
 
