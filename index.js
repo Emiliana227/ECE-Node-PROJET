@@ -195,96 +195,109 @@ app.get('/taches/stats/assignees', async (req, res) => {
   }
 });
 
-// POST /projets/with-first-task
-// Créer un projet avec une tâche initiale dans une transaction
-app.post('/projets/with-first-task', async (req, res) => {
-  const session = db.client.startSession();
+// ROUTE 7 - POST /taches
+//  Ajouter une nouvelle tâche dans la base
+app.post('/taches', async (req, res) => {
   try {
-    const { projet, tache } = req.body;
-    let projetId, tacheId;
+    // On récupère tout le contenu envoyé dans le body
+    // et on ajoute la date actuelle sous created_a
+    const tache = { 
+      ...req.body, 
+      created_a: new Date().toISOString() 
+    };
 
-    await session.withTransaction(async () => {
-      const projetsCollection = db.collection('projets');
-      const tachesCollection = db.collection('taches');
-      const projetResult = await projetsCollection.insertOne(projet, { session });
-      projetId = projetResult.insertedId;
-      tache.projet_a = projetId;
-      const tacheResult = await tachesCollection.insertOne(tache, { session });
-      tacheId = tacheResult.insertedId;
+    // On insère la tâche dans MongoDB
+    const result = await db.collection('taches').insertOne(tache);
+
+    // On renvoie la tâche créée avec son ID généré par MongoDB
+    res.status(201).json({ 
+      _id: result.insertedId, 
+      ...tache 
     });
 
-    res.status(201).json({ projetId, tacheId });
   } catch (error) {
+    // Si quelque chose ne va pas → erreur serveur
     res.status(500).json({ error: error.message });
-  }});
+  }
+});
 
-  // GET /projets/:id/taches?q=
-// Rechercher des tâches d'un projet avec filtre sur le titre
-app.get('/projets/:id/taches', async (req, res) => {
+
+
+// ROUTE 8 - GET /taches
+// Filtrer les tâches par statut (+ pagination + filtre date)
+// Exemples :
+//   /taches?status=TODO
+//   /taches?page=2&limit=5
+//   /taches?start=2025-01-01&end=2025-01-31
+app.get('/taches', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { q } = req.query;
+    // On récupère les paramètres de l’URL
+    const { status, page = 1, limit = 5, start, end } = req.query;
 
-    // DB init: taches utilisent "projet_id" (string). Les tâches créées via transaction utilisent "projet_a" (ObjectId).
-    const filters = [{ projet_id: id }, { projet_a: id }];
+    // Objet de filtre utilisé dans MongoDB
+    const filter = {};
 
-    // Si id ressemble à un ObjectId, ajouter la variante ObjectId (pour les tâches créées via Mongo)
-    if (ObjectId.isValid(id)) {
-      const oid = new ObjectId(id);
-      filters.push({ projet_id: oid }, { projet_a: oid });
+    // Si un status est envoyé → on filtre dessus
+    if (status) filter.status = status;
+
+    // Si start + end envoyés → filtre entre 2 dates
+    if (start && end) {
+      filter.created_a = {
+        $gte: start,
+        $lte: end
+      };
     }
 
-    // Construire la requête: $or sur les références projet, + filtre titre éventuel
-    const base = { $or: filters };
-    const query = q
-      ? { $and: [base, { titre: { $regex: q, $options: 'i' } }] }
-      : base;
+    // Calcul pour la pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const taches = await db.collection('taches').find(query).toArray();
-    res.json(taches);
+    // On récupère les tâches selon le filtre + pagination
+    const taches = await db.collection('taches')
+      .find(filter)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .toArray();
+
+    // On compte le nombre total de tâches correspondant au filtre
+    const total = await db.collection('taches').countDocuments(filter);
+
+    // On renvoie les résultats + infos de pagination
+    res.json({
+      taches,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET /projets/stats/top-taches
-// Agrégation: Top 3 projets avec le plus de tâches
-app.get('/projets/stats/top-taches', async (req, res) => {
+
+
+// ROUTE 9 - GET /taches/stats/status
+// Faire des statistiques : combien de tâches par statut ?
+// (TODO / IN_PROGRESS / DONE)
+app.get('/taches/stats/status', async (req, res) => {
   try {
+    // Pipeline d'agrégation MongoDB :
+    // 1) regroupe par "status"
+    // 2) compte le nombre
+    // 3) trie par ordre décroissant
     const stats = await db.collection('taches').aggregate([
-      // Normalise la référence projet (projet_a ou projet_id)
-      {
-        $addFields: {
-          projetRef: { $ifNull: ['$projet_a', '$projet_id'] }
-        }
-      },
       {
         $group: {
-          _id: '$projetRef',
-          taskCount: { $sum: 1 }
+          _id: '$status',   // on regroupe par status
+          count: { $sum: 1 } // on compte les tâches
         }
       },
-      { $sort: { taskCount: -1 } },
-      { $limit: 3 },
-      {
-        $lookup: {
-          from: 'projets',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'projetDetails'
-        }
-      },
-      { $unwind: '$projetDetails' },
-      {
-        $project: {
-          _id: 0,
-          projetId: '$_id',
-          projetName: '$projetDetails.titre',
-          taskCount: 1
-        }
-      }
+      { $sort: { count: -1 } } // plus grand → plus petit
     ]).toArray();
+
+    // On renvoie les statistiques
     res.json(stats);
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
