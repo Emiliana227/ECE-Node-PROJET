@@ -163,7 +163,7 @@ app.put('/taches/:id', async (req, res) => {
   }
 });
 
-//  GET /taches/assigned/:userId
+// GET /taches/assigned/:userId
 // Filtrer les tâches assignées à un utilisateur spécifique
 app.get('/taches/assigned/:userId', async (req, res) => {
   try {
@@ -195,7 +195,7 @@ app.get('/taches/stats/assignees', async (req, res) => {
   }
 });
 
-// ROUTE 7 - POST /taches
+//  POST /taches
 //  Ajouter une nouvelle tâche dans la base
 app.post('/taches', async (req, res) => {
   try {
@@ -223,7 +223,7 @@ app.post('/taches', async (req, res) => {
 
 
 
-// ROUTE 8 - GET /taches
+// GET /taches
 // Filtrer les tâches par statut (+ pagination + filtre date)
 // Exemples :
 //   /taches?status=TODO
@@ -276,9 +276,8 @@ app.get('/taches', async (req, res) => {
 
 
 
-// ROUTE 9 - GET /taches/stats/status
+// GET /taches/stats/status
 // Faire des statistiques : combien de tâches par statut ?
-// (TODO / IN_PROGRESS / DONE)
 app.get('/taches/stats/status', async (req, res) => {
   try {
     // Pipeline d'agrégation MongoDB :
