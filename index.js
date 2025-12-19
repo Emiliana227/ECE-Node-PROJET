@@ -315,7 +315,7 @@ app.post('/projets/with-first-task', async (req, res) => {
       const tachesCollection = db.collection('taches');
       const projetResult = await projetsCollection.insertOne(projet, { session });
       projetId = projetResult.insertedId;
-      tache.projet_a = projetId;
+      tache.projet_id = projetId;
       const tacheResult = await tachesCollection.insertOne(tache, { session });
       tacheId = tacheResult.insertedId;
     });
@@ -324,7 +324,10 @@ app.post('/projets/with-first-task', async (req, res) => {
     
   } catch (error) {
     res.status(500).json({ error: error.message });
-  }});
+  } finally {
+    await session.endSession();
+  }
+});
 
 // GET /projets/:id/taches?q=
 // Rechercher des tâches d'un projet avec filtre sur le titre
@@ -333,13 +336,13 @@ app.get('/projets/:id/taches', async (req, res) => {
     const { id } = req.params;
     const { q } = req.query;
 
-    // DB init: taches utilisent "projet_id" (string). Les tâches créées via transaction utilisent "projet_a" (ObjectId).
-    const filters = [{ projet_id: id }, { projet_a: id }];
+    // Standardisé: taches utilisent "projet_id" (string ou ObjectId)
+    const filters = [{ projet_id: id }];
 
     // Si id ressemble à un ObjectId, ajouter la variante ObjectId (pour les tâches créées via Mongo)
     if (ObjectId.isValid(id)) {
       const oid = new ObjectId(id);
-      filters.push({ projet_id: oid }, { projet_a: oid });
+      filters.push({ projet_id: oid });
     }
 
     // Construire la requête: $or sur les références projet, + filtre titre éventuel
@@ -360,15 +363,9 @@ app.get('/projets/:id/taches', async (req, res) => {
 app.get('/projets/stats/top-taches', async (req, res) => {
   try {
     const stats = await db.collection('taches').aggregate([
-      // Normalise la référence projet (projet_a ou projet_id)
-      {
-        $addFields: {
-          projetRef: { $ifNull: ['$projet_a', '$projet_id'] }
-        }
-      },
       {
         $group: {
-          _id: '$projetRef',
+          _id: '$projet_id',
           taskCount: { $sum: 1 }
         }
       },
