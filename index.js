@@ -20,6 +20,45 @@ async function startServer() {
 }
 
 startServer();
+// ============ NOUVEAUX ENDPOINTS POUR MONITORING ============
+
+// Health Check - Vérifier que l'API fonctionne
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    mongodb: db ? 'connected' : 'disconnected'
+  });
+});
+
+// Metrics - Statistiques de l'application
+app.get('/metrics', async (req, res) => {
+  try {
+    const stats = {
+      application: {
+        name: 'ECE-Node-PROJET',
+        version: '2.0.0',
+        uptime_seconds: Math.floor(process.uptime())
+      },
+      database: {
+        totalUsers: await users.countDocuments(),
+        totalProjets: await projets.countDocuments(),
+        totalTaches: await taches.countDocuments()
+      },
+      system: {
+        memory: {
+          used_mb: Math.floor(process.memoryUsage().heapUsed / 1024 / 1024),
+          total_mb: Math.floor(process.memoryUsage().heapTotal / 1024 / 1024)
+        },
+        node_version: process.version
+      }
+    };
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 //route import 
 app.post('/import', async (req, res) => {
